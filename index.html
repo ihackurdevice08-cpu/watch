@@ -108,9 +108,15 @@
     .panel.light p { color:#544d44; }
     .two-col { display:grid; grid-template-columns: .95fr 1.05fr; gap:22px; }
     .three-col { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:16px; }
-    .calendar { display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; }
-    .day { border:1px solid var(--line); background:#121214; color:var(--text); border-radius:14px; padding:13px 6px; cursor:pointer; text-align:center; }
+    .calendar-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; }
+    .calendar-title { font-weight:900; color:var(--text); letter-spacing:-.02em; }
+    .calendar-nav { display:flex; gap:8px; flex-wrap:wrap; }
+    .calendar { display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; margin-top:12px; }
+    .weekday { color:var(--muted); font-size:12px; text-align:center; padding:6px 0; font-weight:800; }
+    .day { border:1px solid var(--line); background:#121214; color:var(--text); border-radius:14px; padding:13px 6px; cursor:pointer; text-align:center; min-height:46px; }
     .day.active { background:var(--gold-2); color:#111; border-color:var(--gold-2); font-weight:800; }
+    .day.muted { opacity:.25; cursor:default; }
+    .day.past { opacity:.35; cursor:not-allowed; }
     .slots { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; margin-top:16px; }
     .slot { border:1px solid var(--line); background:#141416; border-radius:14px; padding:12px; cursor:pointer; color:var(--text); text-align:left; }
     .slot small { display:block; color:var(--muted); margin-top:4px; }
@@ -277,7 +283,15 @@
         <div class="two-col">
           <div class="panel">
             <h3>날짜 선택</h3>
-            <div id="calendar" class="calendar" style="margin-top:14px;"></div>
+            <div class="calendar-toolbar">
+              <div id="calendarTitle" class="calendar-title"></div>
+              <div class="calendar-nav">
+                <button class="btn small" type="button" onclick="moveCalendarMonth(-1)">‹ 이전달</button>
+                <button class="btn small" type="button" onclick="goTodayCalendar()">오늘</button>
+                <button class="btn small" type="button" onclick="moveCalendarMonth(1)">다음달 ›</button>
+              </div>
+            </div>
+            <div id="calendar" class="calendar"></div>
             <h3 style="margin-top:24px;">시간 선택</h3>
             <div id="slots" class="slots"></div>
             <p class="notice">프라이버시 보호를 위해 같은 시간대 예약은 총 3팀으로 제한합니다. 상담실과 대기실은 분리 배정됩니다.</p>
@@ -384,21 +398,21 @@
     </div>
   </div>
 
-  <footer>
-    Maison de Temps · Luxury Watch Dealer OS Preview · Google Sheets/AppSheet 과제용 정적 HTML
-  </footer>
 
 <script>
 const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxrCY1_jyHfJ2_hPiIeqae9uTCjiI0EQbe3nVKMXL0PbsDrqsGTmmBmicrloKKkAJ4h/exec";
 
 let watches = [];
 let soldWatches = [];
-let reservations = [];
+const reservations = [{"id": "R-001", "customerId": "C-023", "serial": "파0028X66", "type": "실물확인", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "최유찬 딜러"}, {"id": "R-002", "customerId": "C-006", "serial": "파0014M34", "type": "구매상담", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "최유찬 딜러"}, {"id": "R-003", "customerId": "C-025", "serial": "리0025K63", "type": "위탁상담", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "김도윤 딜러"}, {"id": "R-004", "customerId": "C-004", "serial": "리0016R36", "type": "구매상담", "date": "2026-05-29", "time": "15:30", "duration": 30, "status": "대기", "dealer": "정하준 딜러"}, {"id": "R-005", "customerId": "C-017", "serial": "롤0009A68", "type": "구매상담", "date": "2026-05-29", "time": "15:30", "duration": 30, "status": "대기", "dealer": "이서준 딜러"}, {"id": "R-006", "customerId": "C-023", "serial": "바0008A72", "type": "구매상담", "date": "2026-05-30", "time": "12:00", "duration": 30, "status": "확정", "dealer": "박민재 딜러"}, {"id": "R-007", "customerId": "C-021", "serial": "리0025K63", "type": "구매상담", "date": "2026-05-31", "time": "16:00", "duration": 30, "status": "대기", "dealer": "정하준 딜러"}, {"id": "R-008", "customerId": "C-023", "serial": "피0018K13", "type": "위탁상담", "date": "2026-06-01", "time": "11:30", "duration": 30, "status": "대기", "dealer": "이서준 딜러"}, {"id": "R-009", "customerId": "C-013", "serial": "오0030A98", "type": "실물확인", "date": "2026-06-02", "time": "17:00", "duration": 30, "status": "확정", "dealer": "김도윤 딜러"}];
 const brands = ["롤렉스", "파텍필립", "바쉐론 콘스탄틴", "오데마피게", "리차드밀", "피아제", "제이콥앤코"];
 const slots = ["11:00", "11:30", "12:00", "12:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
 let selectedBrand = "전체";
 let selectedDate = null;
 let selectedSlot = null;
+let calendarMonth = new Date();
+calendarMonth.setDate(1);
+calendarMonth.setHours(0, 0, 0, 0);
 
 const faqItems = [
   ["시계 상태등급은 어떤 기준인가요?", "판매 재고의 상태등급은 민트, S, A+, A로 구분됩니다. 민트는 미착용급 또는 신품급에 가까운 상태, S는 눈에 띄는 사용감이 거의 없는 최상급 상태, A+는 전체적으로 우수하지만 미세한 사용 흔적이 있을 수 있는 상태, A는 일반적인 사용감이 확인되는 상태를 의미합니다. 검수 단계의 상품은 내부 재고상태에서 검수로 관리되며 외부 컬렉션에는 노출하지 않습니다."],
@@ -429,7 +443,6 @@ function badges(w) {
   arr.push(`<span class="badge ${statusClass(w.status)}">${statusLabel(w.status)}</span>`);
   if (w.components === '풀세트') arr.push(`<span class="badge">풀세트</span>`);
   if (w.condition === '민트') arr.push(`<span class="badge">민트</span>`);
-  if (w.inspection === '검수완료') arr.push(`<span class="badge">검수완료</span>`);
   if (w.sourceType === '위탁상품') arr.push(`<span class="badge">위탁상품</span>`);
   return arr.join('');
 }
@@ -513,10 +526,9 @@ function openProduct(serial, sold=false) {
         <div class="spec"><span>모델</span><b>${w.model}</b></div>
         <div class="spec"><span>레퍼런스</span><b>${w.ref}</b></div>
         <div class="spec"><span>구성품</span><b>${w.components}</b></div>
-        <div class="spec"><span>검수상태</span><b>${w.inspection}</b></div>
+        <div class="spec"><span>상태등급</span><b>${w.condition || '-'}</b></div>
         <div class="spec"><span>담당딜러</span><b>${w.dealer}</b></div>
       </div>
-      <p>본 상품은 내부 정가품 검수 기준에 따라 시리얼번호, 레퍼런스, 구성품, 보증서 확인을 거친 매물입니다. 시리얼번호는 내부 관리 Key로 사용되며 고객 화면에는 노출하지 않습니다.</p>
       <div class="card-actions" style="margin-top:22px;">
         ${w.status === '판매완료' ? `<button class="btn ghost" onclick="showTab('sold')">판매완료 목록으로</button>` : `<button class="btn primary" onclick="openBooking('${w.serial}')">방문 예약하기</button>`}
       </div>
@@ -699,25 +711,66 @@ function formatLocalDate(d) {
   return `${y}-${m}-${day}`;
 }
 
-function buildCalendar() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const days = [];
-  for (let i = 0; i < 21; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    days.push(formatLocalDate(d));
-  }
-  if (!selectedDate || !days.includes(selectedDate)) selectedDate = days[0];
-  const weekday = ['일','월','화','수','목','금','토'];
-  document.getElementById('calendar').innerHTML = days.map(d => {
-    const dateObj = new Date(d + 'T00:00:00');
-    const label = `${d.slice(5).replace('-', '/')}(${weekday[dateObj.getDay()]})`;
-    return `<button class="day ${d===selectedDate?'active':''}" onclick="selectedDate='${d}'; selectedSlot=null; buildCalendar(); renderSlots(); renderBookingWatchOptions();">${label}</button>`;
-  }).join('');
-  renderSlots();
+function monthLabel(d) {
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
 }
 
+function isPastDateString(dateStr) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr + 'T00:00:00');
+  return target < today;
+}
+
+function moveCalendarMonth(delta) {
+  calendarMonth.setMonth(calendarMonth.getMonth() + delta);
+  calendarMonth.setDate(1);
+  buildCalendar();
+}
+
+function goTodayCalendar() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  calendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  selectedDate = formatLocalDate(today);
+  selectedSlot = null;
+  buildCalendar();
+  renderBookingWatchOptions();
+}
+
+function buildCalendar() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (!selectedDate) selectedDate = formatLocalDate(today);
+  if (!calendarMonth || Number.isNaN(calendarMonth.getTime())) {
+    calendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  }
+
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const firstWeekday = firstDay.getDay();
+  const totalDays = lastDay.getDate();
+  const weekday = ['일','월','화','수','목','금','토'];
+  const cells = [];
+
+  weekday.forEach(w => cells.push(`<div class="weekday">${w}</div>`));
+  for (let i = 0; i < firstWeekday; i++) cells.push('<div class="day muted"></div>');
+
+  for (let day = 1; day <= totalDays; day++) {
+    const d = new Date(year, month, day);
+    const dateStr = formatLocalDate(d);
+    const past = d < today;
+    const active = dateStr === selectedDate;
+    cells.push(`<button class="day ${active?'active':''} ${past?'past':''}" ${past?'disabled':''} onclick="selectedDate='${dateStr}'; selectedSlot=null; buildCalendar(); renderSlots(); renderBookingWatchOptions();">${day}</button>`);
+  }
+
+  document.getElementById('calendarTitle').textContent = monthLabel(calendarMonth);
+  document.getElementById('calendar').innerHTML = cells.join('');
+  renderSlots();
+}
 function slotCount(date, time) {
   return reservations.filter(r => r.date === date && r.time === time && r.status !== '취소').length;
 }
@@ -826,36 +879,6 @@ async function postToAppsScript(payload, successMessage) {
     console.error(error);
     alert('전송 중 오류가 발생했습니다. Apps Script 배포 URL 또는 네트워크 상태를 확인해주세요.');
     return false;
-  }
-}
-
-
-function applyReservationData(data) {
-  if (!data || data.ok === false || !Array.isArray(data.reservations)) return false;
-  reservations = data.reservations.map(r => ({
-    id: String(r.id || ''),
-    customerId: String(r.customerId || ''),
-    customerName: String(r.customerName || ''),
-    contact: String(r.contact || ''),
-    serial: String(r.serial || ''),
-    type: String(r.type || ''),
-    date: String(r.date || ''),
-    time: String(r.time || ''),
-    status: String(r.status || ''),
-    dealer: String(r.dealer || '')
-  })).filter(r => r.date && r.time);
-  renderSlots();
-  renderBookingWatchOptions();
-  return true;
-}
-
-async function loadReservations() {
-  if (!APPS_SCRIPT_WEB_APP_URL) return;
-  try {
-    const data = await callAppsScriptJsonp('getReservations', {});
-    applyReservationData(data);
-  } catch (error) {
-    console.warn('[Maison de Temps] 예약관리 데이터 로딩 실패. 최종 중복 검증은 Apps Script 저장 단계에서 처리됩니다.', error);
   }
 }
 
@@ -1058,7 +1081,6 @@ renderSold();
 buildCalendar();
 renderFaq();
 loadPublicWatches();
-loadReservations();
 </script>
 </body>
 </html>
