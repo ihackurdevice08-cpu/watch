@@ -393,7 +393,7 @@ const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxrCY1_
 
 let watches = [];
 let soldWatches = [];
-const reservations = [{"id": "R-001", "customerId": "C-023", "serial": "파0028X66", "type": "실물확인", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "최유찬 딜러"}, {"id": "R-002", "customerId": "C-006", "serial": "파0014M34", "type": "구매상담", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "최유찬 딜러"}, {"id": "R-003", "customerId": "C-025", "serial": "리0025K63", "type": "위탁상담", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "김도윤 딜러"}, {"id": "R-004", "customerId": "C-004", "serial": "리0016R36", "type": "구매상담", "date": "2026-05-29", "time": "15:30", "duration": 30, "status": "대기", "dealer": "정하준 딜러"}, {"id": "R-005", "customerId": "C-017", "serial": "롤0009A68", "type": "구매상담", "date": "2026-05-29", "time": "15:30", "duration": 30, "status": "대기", "dealer": "이서준 딜러"}, {"id": "R-006", "customerId": "C-023", "serial": "바0008A72", "type": "구매상담", "date": "2026-05-30", "time": "12:00", "duration": 30, "status": "확정", "dealer": "박민재 딜러"}, {"id": "R-007", "customerId": "C-021", "serial": "리0025K63", "type": "구매상담", "date": "2026-05-31", "time": "16:00", "duration": 30, "status": "대기", "dealer": "정하준 딜러"}, {"id": "R-008", "customerId": "C-023", "serial": "피0018K13", "type": "위탁상담", "date": "2026-06-01", "time": "11:30", "duration": 30, "status": "대기", "dealer": "이서준 딜러"}, {"id": "R-009", "customerId": "C-013", "serial": "오0030A98", "type": "실물확인", "date": "2026-06-02", "time": "17:00", "duration": 30, "status": "확정", "dealer": "김도윤 딜러"}];
+let reservations = [];
 const brands = ["롤렉스", "파텍필립", "바쉐론 콘스탄틴", "오데마피게", "리차드밀", "피아제", "제이콥앤코"];
 const slots = ["11:00", "11:30", "12:00", "12:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
 let selectedBrand = "전체";
@@ -518,7 +518,7 @@ function openProduct(serial, sold=false) {
       </div>
       <p>본 상품은 내부 정가품 검수 기준에 따라 시리얼번호, 레퍼런스, 구성품, 보증서 확인을 거친 매물입니다. 시리얼번호는 내부 관리 Key로 사용되며 고객 화면에는 노출하지 않습니다.</p>
       <div class="card-actions" style="margin-top:22px;">
-        ${w.status === '판매완료' ? `<button class="btn ghost" onclick="showTab('sold')">판매완료 목록으로</button>` : `<button class="btn primary" onclick="openBooking('${w.serial}')">방문 예약하기</button><button class="btn" onclick="submitPriceOffer('${w.serial}')">가격 제안하기</button>`}
+        ${w.status === '판매완료' ? `<button class="btn ghost" onclick="showTab('sold')">판매완료 목록으로</button>` : `<button class="btn primary" onclick="openBooking('${w.serial}')">방문 예약하기</button>`}
       </div>
     </div>
   </div>`;
@@ -692,15 +692,29 @@ async function submitReservation() {
   }
 }
 
+function formatLocalDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function buildCalendar() {
-  const start = new Date('2026-05-28T00:00:00');
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
   const days = [];
-  for (let i=0; i<14; i++) {
-    const d = new Date(start); d.setDate(start.getDate()+i);
-    days.push(d.toISOString().slice(0,10));
+  for (let i = 0; i < 21; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(formatLocalDate(d));
   }
   if (!selectedDate || !days.includes(selectedDate)) selectedDate = days[0];
-  document.getElementById('calendar').innerHTML = days.map(d => `<button class="day ${d===selectedDate?'active':''}" onclick="selectedDate='${d}'; selectedSlot=null; buildCalendar(); renderSlots(); renderBookingWatchOptions();">${d.slice(5).replace('-','/')}</button>`).join('');
+  const weekday = ['일','월','화','수','목','금','토'];
+  document.getElementById('calendar').innerHTML = days.map(d => {
+    const dateObj = new Date(d + 'T00:00:00');
+    const label = `${d.slice(5).replace('-', '/')}(${weekday[dateObj.getDay()]})`;
+    return `<button class="day ${d===selectedDate?'active':''}" onclick="selectedDate='${d}'; selectedSlot=null; buildCalendar(); renderSlots(); renderBookingWatchOptions();">${label}</button>`;
+  }).join('');
   renderSlots();
 }
 
@@ -729,15 +743,6 @@ function renderFaq() {
   document.getElementById('faqList').innerHTML = faqItems.map(([q,a],i) => `<div class="faq-item"><div class="faq-q" onclick="this.parentElement.classList.toggle('open')"><span>${q}</span><span>＋</span></div><div class="faq-a">${a}</div></div>`).join('');
 }
 
-function calcConsign() {
-  const price = Number((document.getElementById('consignPrice').value||'').replaceAll(',',''));
-  const rate = Number(document.getElementById('consignRate').value||0);
-  if (!price || !rate) { document.getElementById('calcResult').innerHTML = '<p>예상 판매가와 수수료율을 입력해주세요.</p>'; return; }
-  const fee = Math.round(price * rate / 100);
-  const net = price - fee;
-  document.getElementById('calcResult').innerHTML = `<h3>예상 정산</h3><p>예상 수수료: <b>${money(fee)}</b></p><p>예상 정산금: <b>${money(net)}</b></p><p class="mini">실제 수수료와 정산금은 상품 상태, 시세, 계약 조건에 따라 달라질 수 있습니다.</p>`;
-}
-
 function openDoc(key) {
   const [title, body] = docs[key];
   document.getElementById('docTitle').textContent = title;
@@ -745,6 +750,47 @@ function openDoc(key) {
   document.getElementById('docModal').classList.add('active');
 }
 function closeDoc() { document.getElementById('docModal').classList.remove('active'); }
+
+function callAppsScriptJsonp(action, payload) {
+  return new Promise((resolve, reject) => {
+    if (!APPS_SCRIPT_WEB_APP_URL) {
+      reject(new Error('APPS_SCRIPT_WEB_APP_URL이 비어 있습니다.'));
+      return;
+    }
+
+    const callbackName = 'mdtSubmit_' + action + '_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    const script = document.createElement('script');
+    const separator = APPS_SCRIPT_WEB_APP_URL.includes('?') ? '&' : '?';
+    const timer = setTimeout(() => {
+      try { delete window[callbackName]; } catch(e) {}
+      script.remove();
+      reject(new Error(action + ' JSONP timeout'));
+    }, 15000);
+
+    window[callbackName] = (res) => {
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch(e) {}
+      script.remove();
+      resolve(res || { ok: false, error: 'EMPTY_RESPONSE' });
+    };
+
+    script.onerror = () => {
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch(e) {}
+      script.remove();
+      reject(new Error(action + ' JSONP load failed'));
+    };
+
+    const query = [
+      'action=' + encodeURIComponent(action),
+      'payload=' + encodeURIComponent(JSON.stringify(payload || {})),
+      'callback=' + encodeURIComponent(callbackName),
+      '_=' + Date.now()
+    ].join('&');
+    script.src = APPS_SCRIPT_WEB_APP_URL + separator + query;
+    document.body.appendChild(script);
+  });
+}
 
 async function postToAppsScript(payload, successMessage) {
   if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -768,24 +814,48 @@ async function postToAppsScript(payload, successMessage) {
     });
   }
 
-  if (!APPS_SCRIPT_WEB_APP_URL) {
-    alert('Apps Script Web App URL이 설정되어 있지 않습니다.');
-    return false;
-  }
-
   try {
-    await fetch(APPS_SCRIPT_WEB_APP_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-    alert(successMessage);
+    const res = await callAppsScriptJsonp(payload.action, payload);
+    if (res && res.ok === false) {
+      alert(res.message || res.error || '저장에 실패했습니다.');
+      return false;
+    }
+    alert((res && res.message) || successMessage);
     return true;
   } catch (error) {
     console.error(error);
-    alert('전송 중 오류가 발생했습니다. 배포 URL 또는 네트워크 상태를 확인해주세요.');
+    alert('전송 중 오류가 발생했습니다. Apps Script 배포 URL 또는 네트워크 상태를 확인해주세요.');
     return false;
+  }
+}
+
+
+function applyReservationData(data) {
+  if (!data || data.ok === false || !Array.isArray(data.reservations)) return false;
+  reservations = data.reservations.map(r => ({
+    id: String(r.id || ''),
+    customerId: String(r.customerId || ''),
+    customerName: String(r.customerName || ''),
+    contact: String(r.contact || ''),
+    serial: String(r.serial || ''),
+    type: String(r.type || ''),
+    date: String(r.date || ''),
+    time: String(r.time || ''),
+    status: String(r.status || ''),
+    dealer: String(r.dealer || '')
+  })).filter(r => r.date && r.time);
+  renderSlots();
+  renderBookingWatchOptions();
+  return true;
+}
+
+async function loadReservations() {
+  if (!APPS_SCRIPT_WEB_APP_URL) return;
+  try {
+    const data = await callAppsScriptJsonp('getReservations', {});
+    applyReservationData(data);
+  } catch (error) {
+    console.warn('[Maison de Temps] 예약관리 데이터 로딩 실패. 최종 중복 검증은 Apps Script 저장 단계에서 처리됩니다.', error);
   }
 }
 
@@ -799,8 +869,6 @@ async function submitConsignmentInquiry() {
   const wishPrice = document.getElementById('consignWishPrice').value.trim();
   const components = document.getElementById('consignComponents').value;
   const memo = document.getElementById('consignMemo').value.trim();
-  const calcPrice = document.getElementById('consignPrice').value.trim();
-  const calcRate = document.getElementById('consignRate').value.trim();
   if (!name) return alert('성함을 입력해주세요.');
   if (!contact) return alert('연락처(전화번호)를 입력해주세요.');
   if (brand === '관심 브랜드 선택') return alert('브랜드를 선택해주세요.');
@@ -813,31 +881,9 @@ async function submitConsignmentInquiry() {
     ref,
     wishPrice,
     components,
-    memo,
-    calcPrice,
-    calcRate
+    memo
   }, '위탁 문의가 접수되었습니다. 내부 문의관리 시트에 반영됩니다.');
   if (ok) ['consignName','consignContact','consignModel','consignRef','consignWishPrice','consignMemo'].forEach(id => document.getElementById(id).value = '');
-}
-
-async function submitPriceOffer(serial) {
-  const w = findWatchBySerial(serial);
-  const name = prompt('성함을 입력해주세요.');
-  if (!name) return;
-  const contact = prompt('연락처(전화번호) 또는 이메일을 입력해주세요.');
-  if (!contact) return;
-  const offerPrice = prompt('희망 구매가를 입력해주세요. 예: 52000000');
-  if (!offerPrice) return;
-  const memo = prompt('추가 요청사항이 있으면 입력해주세요. 없으면 확인을 누르세요.') || '';
-  await postToAppsScript({
-    action: 'submitPriceOffer',
-    customerName: name.trim(),
-    contact: contact.trim(),
-    serial,
-    watchLabel: w ? `${w.brand} ${w.model} (${w.serial.slice(-3)})` : '',
-    offerPrice: offerPrice.trim(),
-    memo
-  }, '가격 제안이 접수되었습니다. 내부 문의관리 시트에 반영됩니다.');
 }
 
 function fakeSubmit(msg) { alert(msg); }
@@ -1012,6 +1058,7 @@ renderSold();
 buildCalendar();
 renderFaq();
 loadPublicWatches();
+loadReservations();
 </script>
 </body>
 </html>
