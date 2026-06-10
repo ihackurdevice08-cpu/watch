@@ -566,6 +566,48 @@ function formatPhoneForDisplay(value) {
   return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
 }
 
+function formatPhoneForDb(value) {
+  return formatPhoneForDisplay(value);
+}
+
+function normalizeReservationDateValue(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  let m = text.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+  m = text.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/);
+  if (m) return `${m[3]}-${String(m[1]).padStart(2, '0')}-${String(m[2]).padStart(2, '0')}`;
+  const d = new Date(text);
+  if (!Number.isNaN(d.getTime())) return formatLocalDate(d);
+  return text.slice(0, 10);
+}
+
+function normalizeReservationTimeValue(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  let m = text.match(/(오전|오후)\s*(\d{1,2}):(\d{2})/);
+  if (m) {
+    let h = Number(m[2]);
+    if (m[1] === '오후' && h < 12) h += 12;
+    if (m[1] === '오전' && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${m[3]}`;
+  }
+  m = text.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|am|pm)?/);
+  if (m) {
+    let h = Number(m[1]);
+    const meridiem = m[3] ? m[3].toUpperCase() : '';
+    if (meridiem === 'PM' && h < 12) h += 12;
+    if (meridiem === 'AM' && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${m[2]}`;
+  }
+  return text.slice(0, 5);
+}
+
+function isActiveReservationStatus(status) {
+  const s = String(status || '').trim();
+  return !['취소', '예약취소', '취소됨', '노쇼'].includes(s);
+}
+
 function isValidFormattedPhone(value) {
   return /^\d{3}-\d{4}-\d{4}$/.test(formatPhoneForDisplay(value));
 }
@@ -582,7 +624,7 @@ function bindPhoneFormatter(inputId) {
 }
 
 function activeReservationsForSlot(date, time) {
-  return reservations.filter(r => r.date === date && r.time === time && r.status !== '취소');
+  return reservations.filter(r => r.date === date && r.time === time && isActiveReservationStatus(r.status));
 }
 
 function isWatchBookedInSlot(date, time, serial) {
@@ -593,7 +635,7 @@ function isWatchBookedInSlot(date, time, serial) {
 function isWatchReservedAnywhere(serial) {
   const targetSerial = String(serial || '').trim();
   if (!targetSerial) return false;
-  return reservations.some(r => String(r.serial || '').trim() === targetSerial && r.status !== '취소');
+  return reservations.some(r => String(r.serial || '').trim() === targetSerial && isActiveReservationStatus(r.status));
 }
 
 function isWatchReservable(w) {
@@ -812,7 +854,7 @@ function buildCalendar() {
   renderSlots();
 }
 function slotCount(date, time) {
-  return reservations.filter(r => r.date === date && r.time === time && r.status !== '취소').length;
+  return reservations.filter(r => r.date === date && r.time === time && isActiveReservationStatus(r.status)).length;
 }
 
 function renderSlots() {
@@ -1049,8 +1091,8 @@ function normalizeReservationRow(r) {
     contact: formatPhoneForDb(r.contact || r.phone || ''),
     serial: String(r.serial || '').trim(),
     type: String(r.type || '').trim(),
-    date: String(r.date || '').trim().slice(0, 10),
-    time: String(r.time || '').trim().slice(0, 5),
+    date: normalizeReservationDateValue(r.date),
+    time: normalizeReservationTimeValue(r.time),
     status: String(r.status || '').trim(),
     dealer: String(r.dealer || '').trim()
   };
@@ -1065,7 +1107,8 @@ function applyReservationData(data) {
   }
 
   const rows = Array.isArray(data.reservations) ? data.reservations : [];
-  reservations = rows.map(normalizeReservationRow).filter(r => r.date && r.time && r.status !== '취소');
+  reservations = rows.map(normalizeReservationRow).filter(r => r.date && r.time && isActiveReservationStatus(r.status));
+  console.table(reservations.map(r => ({ id: r.id, date: r.date, time: r.time, status: r.status, serial: r.serial, contact: r.contact })).slice(0, 30));
 
   renderSlots();
   renderBookingWatchOptions();
