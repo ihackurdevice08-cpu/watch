@@ -300,7 +300,7 @@
             <h3>예약 정보</h3>
             <div class="form-grid">
               <input id="bookingName" placeholder="성함" />
-              <input id="bookingContact" placeholder="연락처(전화번호)" />
+              <input id="bookingContact" placeholder="010-0000-0000" inputmode="numeric" maxlength="13" />
               <input id="bookingEmail" placeholder="이메일 선택 입력" />
               <select id="bookingType">
                 <option>실물확인</option><option>구매상담</option><option>위탁상담</option>
@@ -324,7 +324,7 @@
         <div class="panel">
           <h3>위탁 상담 신청</h3>
           <div class="form-grid">
-            <input id="consignName" placeholder="성함" /><input id="consignContact" placeholder="연락처(전화번호)" />
+            <input id="consignName" placeholder="성함" /><input id="consignContact" placeholder="010-0000-0000" inputmode="numeric" maxlength="13" />
             <select id="consignBrand"></select><input id="consignModel" placeholder="모델명" />
             <input id="consignRef" placeholder="레퍼런스번호" /><input id="consignWishPrice" placeholder="희망 판매가" />
             <select id="consignComponents"><option>구성품</option><option>풀세트</option><option>박스+보증서</option><option>시계 단품</option></select>
@@ -404,7 +404,7 @@ const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxrCY1_
 
 let watches = [];
 let soldWatches = [];
-const reservations = [{"id": "R-001", "customerId": "C-023", "serial": "파0028X66", "type": "실물확인", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "최유찬 딜러"}, {"id": "R-002", "customerId": "C-006", "serial": "파0014M34", "type": "구매상담", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "최유찬 딜러"}, {"id": "R-003", "customerId": "C-025", "serial": "리0025K63", "type": "위탁상담", "date": "2026-05-28", "time": "14:00", "duration": 30, "status": "대기", "dealer": "김도윤 딜러"}, {"id": "R-004", "customerId": "C-004", "serial": "리0016R36", "type": "구매상담", "date": "2026-05-29", "time": "15:30", "duration": 30, "status": "대기", "dealer": "정하준 딜러"}, {"id": "R-005", "customerId": "C-017", "serial": "롤0009A68", "type": "구매상담", "date": "2026-05-29", "time": "15:30", "duration": 30, "status": "대기", "dealer": "이서준 딜러"}, {"id": "R-006", "customerId": "C-023", "serial": "바0008A72", "type": "구매상담", "date": "2026-05-30", "time": "12:00", "duration": 30, "status": "확정", "dealer": "박민재 딜러"}, {"id": "R-007", "customerId": "C-021", "serial": "리0025K63", "type": "구매상담", "date": "2026-05-31", "time": "16:00", "duration": 30, "status": "대기", "dealer": "정하준 딜러"}, {"id": "R-008", "customerId": "C-023", "serial": "피0018K13", "type": "위탁상담", "date": "2026-06-01", "time": "11:30", "duration": 30, "status": "대기", "dealer": "이서준 딜러"}, {"id": "R-009", "customerId": "C-013", "serial": "오0030A98", "type": "실물확인", "date": "2026-06-02", "time": "17:00", "duration": 30, "status": "확정", "dealer": "김도윤 딜러"}];
+let reservations = [];
 const brands = ["롤렉스", "파텍필립", "바쉐론 콘스탄틴", "오데마피게", "리차드밀", "피아제", "제이콥앤코"];
 const slots = ["11:00", "11:30", "12:00", "12:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
 let selectedBrand = "전체";
@@ -451,6 +451,7 @@ function showTab(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
   document.getElementById(id).classList.add('active');
+  if (id === 'booking') loadReservationsFromDb();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
@@ -483,7 +484,7 @@ function renderCard(w, sold=false) {
       <div class="meta">${badges(w)}</div>
       <div class="price">${sold ? '판매완료' : money(w.price)}</div>
       <div class="card-actions">
-        ${sold ? `<button class="btn small" onclick="openProduct('${w.serial}', true)">상세 보기</button>` : `<button class="btn small primary" onclick="openProduct('${w.serial}')">상세 페이지</button><button class="btn small" onclick="openBooking('${w.serial}')">방문 예약</button>`}
+        ${sold ? `<button class="btn small" onclick="openProduct('${w.serial}', true)">상세 보기</button>` : `<button class="btn small primary" onclick="openProduct('${w.serial}')">상세 페이지</button>${isWatchReservable(w) ? `<button class="btn small" onclick="openBooking('${w.serial}')">방문 예약</button>` : `<button class="btn small" disabled>예약 불가</button>`}`}
       </div>
     </div>
   </div>`;
@@ -530,7 +531,7 @@ function openProduct(serial, sold=false) {
         <div class="spec"><span>담당딜러</span><b>${w.dealer}</b></div>
       </div>
       <div class="card-actions" style="margin-top:22px;">
-        ${w.status === '판매완료' ? `<button class="btn ghost" onclick="showTab('sold')">판매완료 목록으로</button>` : `<button class="btn primary" onclick="openBooking('${w.serial}')">방문 예약하기</button>`}
+        ${w.status === '판매완료' ? `<button class="btn ghost" onclick="showTab('sold')">판매완료 목록으로</button>` : isWatchReservable(w) ? `<button class="btn primary" onclick="openBooking('${w.serial}')">방문 예약하기</button>` : `<button class="btn" disabled>현재 예약 불가</button>`}
       </div>
     </div>
   </div>`;
@@ -539,6 +540,11 @@ function openProduct(serial, sold=false) {
 
 
 function openBooking(serial='') {
+  const target = serial ? findWatchBySerial(serial) : null;
+  if (target && !isWatchReservable(target)) {
+    alert('해당 시계는 현재 예약중이거나 구매 가능 상태가 아니어서 예약할 수 없습니다. DB에서 판매상태가 판매중으로 돌아오면 다시 예약 가능합니다.');
+    return;
+  }
   showTab('booking');
   const bookingWatch = document.getElementById('bookingWatch');
   if (bookingWatch && serial) bookingWatch.value = serial;
@@ -552,6 +558,29 @@ function normalizePhone(value) {
   return String(value || '').replace(/[^0-9]/g, '');
 }
 
+function formatPhoneForDisplay(value) {
+  const digits = normalizePhone(value).slice(0, 11);
+  if (!digits) return '';
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return digits.slice(0, 3) + '-' + digits.slice(3);
+  return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+}
+
+function isValidFormattedPhone(value) {
+  return /^\d{3}-\d{4}-\d{4}$/.test(formatPhoneForDisplay(value));
+}
+
+function bindPhoneFormatter(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    el.value = formatPhoneForDisplay(el.value);
+  });
+  el.addEventListener('blur', () => {
+    el.value = formatPhoneForDisplay(el.value);
+  });
+}
+
 function activeReservationsForSlot(date, time) {
   return reservations.filter(r => r.date === date && r.time === time && r.status !== '취소');
 }
@@ -559,6 +588,16 @@ function activeReservationsForSlot(date, time) {
 function isWatchBookedInSlot(date, time, serial) {
   if (!date || !time || !serial) return false;
   return activeReservationsForSlot(date, time).some(r => r.serial === serial);
+}
+
+function isWatchReservedAnywhere(serial) {
+  const targetSerial = String(serial || '').trim();
+  if (!targetSerial) return false;
+  return reservations.some(r => String(r.serial || '').trim() === targetSerial && r.status !== '취소');
+}
+
+function isWatchReservable(w) {
+  return !!(w && w.status === '판매중' && !isWatchReservedAnywhere(w.serial));
 }
 
 function isSameCustomerBookedInSlot(date, time, name, contact) {
@@ -585,7 +624,7 @@ function isDealerBookedInSlot(date, time, dealer) {
 }
 
 function getAvailableBookingWatches() {
-  const base = watches.filter(w => ['판매중','예약중'].includes(w.status));
+  const base = watches.filter(w => w.status === '판매중' && !isWatchReservedAnywhere(w.serial));
   if (!selectedDate || !selectedSlot) return base;
   return base.filter(w =>
     !isWatchBookedInSlot(selectedDate, selectedSlot, w.serial) &&
@@ -611,9 +650,9 @@ function renderBookingWatchOptions() {
     if (!selectedDate || !selectedSlot) {
       notice.textContent = '날짜와 시간을 먼저 선택하면 해당 시간에 예약 가능한 시계만 목록에 표시됩니다.';
     } else {
-      const hiddenCount = watches.length - available.length;
+      const hiddenCount = watches.filter(w => w.status === '판매중').length - available.length;
       notice.textContent = hiddenCount > 0
-        ? `선택한 시간에 이미 예약된 시계 ${hiddenCount}개는 목록에서 제외되었습니다.`
+        ? `예약중이거나 선택한 시간에 예약 불가한 시계 ${hiddenCount}개는 목록에서 제외되었습니다.`
         : '선택한 시간에 예약 가능한 시계만 표시 중입니다.';
     }
   }
@@ -623,7 +662,9 @@ function renderBookingWatchOptions() {
 async function submitReservation() {
   const btn = document.getElementById('bookingSubmitBtn');
   const name = document.getElementById('bookingName').value.trim();
-  const contact = document.getElementById('bookingContact').value.trim();
+  const contactEl = document.getElementById('bookingContact');
+  const contact = formatPhoneForDisplay(contactEl.value);
+  contactEl.value = contact;
   const email = document.getElementById('bookingEmail').value.trim();
   const type = document.getElementById('bookingType').value;
   const serial = document.getElementById('bookingWatch').value;
@@ -634,8 +675,15 @@ async function submitReservation() {
 
   if (!name) return alert('성함을 입력해주세요.');
   if (!contact) return alert('연락처(전화번호)를 입력해주세요.');
+  if (!isValidFormattedPhone(contact)) return alert('연락처는 010-0000-0000 형식으로 입력해주세요.');
+  if (!isValidFormattedPhone(contact)) return alert('연락처는 010-0000-0000 형식으로 입력해주세요.');
   if (!date) return alert('예약 날짜를 선택해주세요.');
   if (!time) return alert('예약 시간을 선택해주세요.');
+
+  if (serial && (!watch || !isWatchReservable(watch))) {
+    renderBookingWatchOptions();
+    return alert('해당 시계는 현재 예약중이거나 구매 가능 상태가 아니어서 예약할 수 없습니다. DB에서 판매상태가 판매중으로 변경되면 다시 예약 가능합니다.');
+  }
 
   if (slotCount(date, time) >= 3) {
     return alert('해당 날짜와 시간대는 이미 최대 3팀 예약이 완료되었습니다. 다른 시간을 선택해주세요.');
@@ -673,22 +721,10 @@ async function submitReservation() {
     btn.disabled = true;
     btn.textContent = '예약 접수 중...';
 
-    await postToAppsScript(payload, '예약 신청이 접수되었습니다. 내부 예약관리 시트와 AppSheet 예약관리 탭에 반영됩니다.');
+    const ok = await postToAppsScript(payload, '예약 신청이 접수되었습니다. 내부 예약관리 시트와 AppSheet 예약관리 탭에 반영됩니다.');
+    if (!ok) return;
 
-    reservations.push({
-      id: 'PENDING-' + Date.now(),
-      customerId: '',
-      customerName: name,
-      contact,
-      serial,
-      type,
-      date,
-      time,
-      status: '예약접수',
-      dealer: payload.dealer
-    });
-    renderSlots();
-    renderBookingWatchOptions();
+    await loadReservationsFromDb();
 
     document.getElementById('bookingName').value = '';
     document.getElementById('bookingContact').value = '';
@@ -885,7 +921,9 @@ async function postToAppsScript(payload, successMessage) {
 
 async function submitConsignmentInquiry() {
   const name = document.getElementById('consignName').value.trim();
-  const contact = document.getElementById('consignContact').value.trim();
+  const contactEl = document.getElementById('consignContact');
+  const contact = formatPhoneForDisplay(contactEl.value);
+  contactEl.value = contact;
   const brand = document.getElementById('consignBrand').value;
   const model = document.getElementById('consignModel').value.trim();
   const ref = document.getElementById('consignRef').value.trim();
@@ -998,6 +1036,96 @@ function applyPublicWatchData(data) {
   return true;
 }
 
+
+function normalizeReservationRow(r) {
+  return {
+    id: String(r.id || r.reservationId || '').trim(),
+    customerId: String(r.customerId || '').trim(),
+    customerName: String(r.customerName || r.name || '').trim(),
+    contact: formatPhoneForDb(r.contact || r.phone || ''),
+    serial: String(r.serial || '').trim(),
+    type: String(r.type || '').trim(),
+    date: String(r.date || '').trim().slice(0, 10),
+    time: String(r.time || '').trim().slice(0, 5),
+    status: String(r.status || '').trim(),
+    dealer: String(r.dealer || '').trim()
+  };
+}
+
+function applyReservationData(data) {
+  console.log('[Maison de Temps] reservation response:', data);
+
+  if (!data || data.ok === false) {
+    console.warn('[Maison de Temps] 예약 데이터 로딩 실패:', data && (data.message || data.error));
+    return false;
+  }
+
+  const rows = Array.isArray(data.reservations) ? data.reservations : [];
+  reservations = rows.map(normalizeReservationRow).filter(r => r.date && r.time && r.status !== '취소');
+
+  renderSlots();
+  renderBookingWatchOptions();
+  renderCollection();
+  renderSold();
+
+  console.log(`[Maison de Temps] DB 예약 로딩 완료: ${reservations.length}건`);
+  return true;
+}
+
+function loadJsonpRawAction(action) {
+  return new Promise((resolve, reject) => {
+    const callbackName = 'mdtCallback_' + action + '_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    const script = document.createElement('script');
+    const separator = APPS_SCRIPT_WEB_APP_URL.includes('?') ? '&' : '?';
+    const timer = setTimeout(() => {
+      try { delete window[callbackName]; } catch(e) {}
+      script.remove();
+      reject(new Error(action + ' JSONP timeout'));
+    }, 12000);
+
+    window[callbackName] = (data) => {
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch(e) {}
+      script.remove();
+      resolve(data);
+    };
+
+    script.onerror = () => {
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch(e) {}
+      script.remove();
+      reject(new Error(action + ' JSONP load failed'));
+    };
+
+    script.src = APPS_SCRIPT_WEB_APP_URL + separator + 'action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName) + '&_=' + Date.now();
+    document.body.appendChild(script);
+  });
+}
+
+async function loadReservationsFromDb() {
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    return new Promise((resolve) => {
+      google.script.run
+        .withSuccessHandler((res) => resolve(applyReservationData(res)))
+        .withFailureHandler((error) => {
+          console.error('[Maison de Temps] Apps Script 예약 로딩 실패:', error);
+          resolve(false);
+        })
+        .handleClientPayload({ action: 'getReservations' });
+    });
+  }
+
+  if (!APPS_SCRIPT_WEB_APP_URL) return false;
+
+  try {
+    const data = await loadJsonpRawAction('getReservations');
+    return applyReservationData(data);
+  } catch (error) {
+    console.error('[Maison de Temps] getReservations JSONP 실패:', error);
+    return false;
+  }
+}
+
 function loadJsonpAction(action) {
   return new Promise((resolve, reject) => {
     const callbackName = 'mdtCallback_' + action + '_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
@@ -1075,6 +1203,8 @@ async function loadPublicWatches() {
 
 
 initBrandSelectors();
+bindPhoneFormatter('bookingContact');
+bindPhoneFormatter('consignContact');
 renderBrandTiles();
 renderCollection();
 renderSold();
