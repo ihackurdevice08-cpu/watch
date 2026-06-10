@@ -405,6 +405,8 @@ const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxrCY1_
 let watches = [];
 let soldWatches = [];
 let reservations = [];
+let reservationsLoaded = false;
+let reservationsLoadError = '';
 const brands = ["롤렉스", "파텍필립", "바쉐론 콘스탄틴", "오데마피게", "리차드밀", "피아제", "제이콥앤코"];
 const slots = ["11:00", "11:30", "12:00", "12:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
 let selectedBrand = "전체";
@@ -861,6 +863,18 @@ function renderSlots() {
   document.getElementById('selectedDate').value = selectedDate || '';
   document.getElementById('selectedTime').value = selectedSlot || '';
   renderBookingWatchOptions();
+
+  if (!reservationsLoaded) {
+    const msg = reservationsLoadError
+      ? 'DB 예약현황 확인 실패'
+      : 'DB 예약현황 확인 중';
+    document.getElementById('slots').innerHTML = slots.map(t => `
+      <button class="slot full" disabled>
+        <b>${t}</b><small>${msg} · 예약 불가</small>
+      </button>`).join('');
+    return;
+  }
+
   document.getElementById('slots').innerHTML = slots.map(t => {
     const c = slotCount(selectedDate, t);
     const left = 3 - c;
@@ -868,7 +882,7 @@ function renderSlots() {
     const warn = left === 1;
     const active = selectedSlot === t;
     return `<button class="slot ${full?'full':''} ${warn?'warn':''} ${active?'active':''}" ${full?'disabled':''} onclick="selectedSlot='${t}'; renderSlots(); renderBookingWatchOptions();">
-      <b>${t}</b><small>${full?'예약 마감': warn?'1자리 남음': left+'자리 가능'} · 30분</small>
+      <b>${t}</b><small>${full?'예약 마감': warn?'1자리 남음': left+'자리 가능'} · 현재 ${c}건 · 30분</small>
     </button>`;
   }).join('');
   document.getElementById('selectedTime').value = selectedSlot || '';
@@ -1102,12 +1116,17 @@ function applyReservationData(data) {
   console.log('[타임피스 청담] reservation response:', data);
 
   if (!data || data.ok === false) {
-    console.warn('[타임피스 청담] 예약 데이터 로딩 실패:', data && (data.message || data.error));
+    reservationsLoaded = false;
+    reservationsLoadError = data && (data.message || data.error) ? String(data.message || data.error) : 'EMPTY_OR_ERROR_RESPONSE';
+    console.warn('[타임피스 청담] 예약 데이터 로딩 실패:', reservationsLoadError, data);
+    renderSlots();
     return false;
   }
 
   const rows = Array.isArray(data.reservations) ? data.reservations : [];
   reservations = rows.map(normalizeReservationRow).filter(r => r.date && r.time && isActiveReservationStatus(r.status));
+  reservationsLoaded = true;
+  reservationsLoadError = '';
   console.table(reservations.map(r => ({ id: r.id, date: r.date, time: r.time, status: r.status, serial: r.serial, contact: r.contact })).slice(0, 30));
 
   renderSlots();
@@ -1168,7 +1187,10 @@ async function loadReservationsFromDb() {
     const data = await loadJsonpRawAction('getReservations');
     return applyReservationData(data);
   } catch (error) {
+    reservationsLoaded = false;
+    reservationsLoadError = error && error.message ? error.message : String(error);
     console.error('[타임피스 청담] getReservations JSONP 실패:', error);
+    renderSlots();
     return false;
   }
 }
