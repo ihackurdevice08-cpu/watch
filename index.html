@@ -194,7 +194,6 @@
         <button class="tab-btn active" data-tab="home">홈</button>
         <button class="tab-btn" data-tab="collection">매물</button>
         <button class="tab-btn" data-tab="booking">방문예약</button>
-        <button class="tab-btn" data-tab="consignment">위탁문의</button>
         <button class="tab-btn" data-tab="sold">판매완료</button>
         <button class="tab-btn" data-tab="store">매장안내</button>
         <button class="tab-btn" data-tab="faq">FAQ</button>
@@ -234,7 +233,6 @@
         </div>
         <div class="three-col">
           <div class="panel"><h3>구매하고 싶어요</h3><p>브랜드별 컬렉션에서 현재 구매 가능한 매물을 확인하세요.</p><br><button class="btn primary" onclick="showTab('collection')">매물 보기</button></div>
-          <div class="panel"><h3>보유 시계를 맡기고 싶어요</h3><p>위탁 예상 정산금 계산 후 상담 신청을 남길 수 있습니다.</p><br><button class="btn" onclick="showTab('consignment')">위탁 상담</button></div>
         </div>
       </div>
     </section>
@@ -320,24 +318,6 @@
             </div>
             <button id="bookingSubmitBtn" class="btn primary" style="margin-top:12px" onclick="submitReservation()">예약 신청</button>
           </div>
-        </div>
-      </div>
-    </section>
-<section id="consignment" class="page">
-      <div class="wrap">
-        <div class="section-head">
-          <div><div class="eyebrow">SELL OR CONSIGN</div><h2>위탁 문의</h2><p>보유 중인 시계의 브랜드, 모델, 레퍼런스, 구성품, 희망 판매가를 남겨주시면 내부 검토 후 위탁 가능 여부와 예상 판매 조건을 개별 안내드립니다.</p></div>
-        </div>
-        <div class="panel">
-          <h3>위탁 상담 신청</h3>
-          <div class="form-grid">
-            <input id="consignName" placeholder="성함" /><input id="consignContact" placeholder="010-0000-0000" inputmode="numeric" maxlength="13" />
-            <select id="consignBrand"></select><input id="consignModel" placeholder="모델명" />
-            <input id="consignRef" placeholder="레퍼런스번호" /><input id="consignWishPrice" placeholder="희망 판매가" />
-            <select id="consignComponents"><option>구성품</option><option>풀세트</option><option>박스+보증서</option><option>시계 단품</option></select>
-            <textarea id="consignMemo" class="full" placeholder="상태, 구매시기, 추가 설명"></textarea>
-          </div>
-          <button class="btn primary" style="margin-top:12px" onclick="submitConsignmentInquiry()">위탁 문의 접수</button>
         </div>
       </div>
     </section>
@@ -467,12 +447,6 @@ function showTab(id) {
 document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
 
 function initBrandSelectors() {
-  const brandSelects = ['consignBrand'];
-  brandSelects.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = '<option>관심 브랜드 선택</option>' + brands.map(b => `<option>${b}</option>`).join('');
-  });
   renderBookingWatchOptions();
 }
 
@@ -986,34 +960,6 @@ async function postToAppsScript(payload, successMessage) {
 }
 
 
-async function submitConsignmentInquiry() {
-  const name = document.getElementById('consignName').value.trim();
-  const contactEl = document.getElementById('consignContact');
-  const contact = formatPhoneForDisplay(contactEl.value);
-  contactEl.value = contact;
-  const brand = document.getElementById('consignBrand').value;
-  const model = document.getElementById('consignModel').value.trim();
-  const ref = document.getElementById('consignRef').value.trim();
-  const wishPrice = document.getElementById('consignWishPrice').value.trim();
-  const components = document.getElementById('consignComponents').value;
-  const memo = document.getElementById('consignMemo').value.trim();
-  if (!name) return alert('성함을 입력해주세요.');
-  if (!contact) return alert('연락처(전화번호)를 입력해주세요.');
-  if (brand === '관심 브랜드 선택') return alert('브랜드를 선택해주세요.');
-  const ok = await postToAppsScript({
-    action: 'submitConsignmentInquiry',
-    customerName: name,
-    contact,
-    brand,
-    model,
-    ref,
-    wishPrice,
-    components,
-    memo
-  }, '위탁 문의가 접수되었습니다. 내부 문의관리 시트에 반영됩니다.');
-  if (ok) ['consignName','consignContact','consignModel','consignRef','consignWishPrice','consignMemo'].forEach(id => document.getElementById(id).value = '');
-}
-
 function fakeSubmit(msg) { alert(msg); }
 
 
@@ -1280,7 +1226,6 @@ async function loadPublicWatches() {
 
 initBrandSelectors();
 bindPhoneFormatter('bookingContact');
-bindPhoneFormatter('consignContact');
 renderBrandTiles();
 renderCollection();
 renderSold();
