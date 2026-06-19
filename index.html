@@ -130,6 +130,11 @@
     .product-detail.active { display:block; }
     .detail-grid { display:grid; grid-template-columns: .95fr 1.05fr; gap:24px; }
     .detail-img { min-height:520px; border-radius:28px; background-size:cover; background-position:center; border:1px solid var(--line); background-color:#151516; background-image:linear-gradient(135deg, rgba(199,161,90,.18), rgba(0,0,0,.44)); }
+    .detail-gallery { display:grid; gap:10px; align-content:start; }
+    .detail-main-img { min-height:430px; border-radius:28px; background-size:cover; background-position:center; border:1px solid var(--line); background-color:#151516; background-image:linear-gradient(135deg, rgba(199,161,90,.18), rgba(0,0,0,.44)); }
+    .detail-thumbs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .detail-thumb { min-height:105px; border:1px solid var(--line); border-radius:16px; background-size:cover; background-position:center; background-color:#151516; cursor:pointer; padding:0; }
+    .detail-thumb.active { border-color:var(--gold-2); box-shadow:0 0 0 1px var(--gold-2) inset; }
     .specs { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:18px 0; }
     .spec { background:rgba(255,255,255,.06); border:1px solid var(--line); padding:12px; border-radius:14px; }
     .spec span { display:block; color:var(--muted); font-size:12px; }
@@ -493,12 +498,28 @@ function renderSold() {
   document.getElementById('soldGrid').innerHTML = soldWatches.map(w => renderCard(w, true)).join('');
 }
 
+function setDetailImage(url, button) {
+  const main = document.getElementById('detailMainImage');
+  if (!main || !url) return;
+  main.style.backgroundImage = `linear-gradient(to top, rgba(0,0,0,.60), transparent 55%), url('${url}')`;
+  document.querySelectorAll('.detail-thumb').forEach(el => el.classList.remove('active'));
+  if (button) button.classList.add('active');
+}
+
 function openProduct(serial, sold=false) {
   const w = (sold ? soldWatches : watches).find(x => x.serial === serial) || soldWatches.find(x => x.serial === serial);
   if (!w) return;
+  const detailImages = (Array.isArray(w.images) ? w.images : [w.image]).filter(Boolean).slice(0, 3);
+  if (!detailImages.length && w.image) detailImages.push(w.image);
+  const thumbnails = detailImages.map((url, index) =>
+    `<button type="button" class="detail-thumb ${index === 0 ? 'active' : ''}" aria-label="상품 이미지 ${index + 1}" style="background-image:url('${url}')" onclick="setDetailImage('${url}', this)"></button>`
+  ).join('');
   const el = document.getElementById('productDetail');
   el.innerHTML = `<div class="detail-grid">
-    <div class="detail-img" style="background-image:linear-gradient(to top, rgba(0,0,0,.60), transparent 55%), url('${w.image}')"></div>
+    <div class="detail-gallery">
+      <div id="detailMainImage" class="detail-main-img" style="background-image:linear-gradient(to top, rgba(0,0,0,.60), transparent 55%), url('${detailImages[0] || w.image || ''}')"></div>
+      <div class="detail-thumbs">${thumbnails}</div>
+    </div>
     <div class="panel">
       <div class="eyebrow">${w.brand}</div>
       <h2>${w.model}</h2>
@@ -998,6 +1019,10 @@ function showDbLoadError(message) {
 
 function normalizePublicWatchRow(w) {
   const image = normalizeDriveImageUrl(w.image || w.resolvedImage || w.imageUrl || w.imageURL || '');
+  const detailImages = (Array.isArray(w.images) ? w.images : [])
+    .map(normalizeDriveImageUrl)
+    .filter(Boolean);
+  const images = [image, ...detailImages.filter(url => url !== image)].filter(Boolean).slice(0, 3);
   return {
     serial: String(w.serial || '').trim(),
     status: String(w.status || '').trim(),
@@ -1011,7 +1036,7 @@ function normalizePublicWatchRow(w) {
     sourceType: String(w.sourceType || '').trim(),
     inspection: String(w.inspection || '').trim(),
     image,
-    images: image ? [image] : [],
+    images,
     dealer: String(w.dealer || '').trim(),
     listedDate: String(w.listedDate || '').trim()
   };
